@@ -1,3 +1,8 @@
+
+#ifdef USE_ADAFRUIT_I2C_DEVICE
+
+#include <cstdint>
+
 #include "Adafruit_I2CDevice.h"
 
 //#define DEBUG_SERIAL Serial
@@ -311,3 +316,5 @@ bool Adafruit_I2CDevice::setSpeed(uint32_t desiredclk) {
   return false;
 #endif
 }
+
+#endif // USE_ADAFRUIT_I2C_DEVICE

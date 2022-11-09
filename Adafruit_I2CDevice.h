@@ -1,8 +1,31 @@
 #ifndef Adafruit_I2CDevice_h
 #define Adafruit_I2CDevice_h
 
+#if __has_include(<main.h>)
+#include <main.h>
+#endif
+
+#ifdef USE_ADAFRUIT_I2C_DEVICE
+
+#ifdef ARDUINO
 #include <Arduino.h>
 #include <Wire.h>
+#else
+
+#if __has_include(<main.h>)
+#include <main.h>
+#endif
+
+#include <cstdint>
+
+#include <stm32yyxx_hal_conf.h>
+#include <stm32yyxx_hal_def.h>
+#include <stm32yyxx_hal_i2c.h>
+
+
+
+#endif
+
 
 ///< The class which defines how we will talk to this device over I2C
 class Adafruit_I2CDevice {
@@ -32,5 +55,7 @@ private:
   size_t _maxBufferSize;
   bool _read(uint8_t *buffer, size_t len, bool stop);
 };
+
+#endif // USE_ADAFRUIT_I2C_DEVICE
 
 #endif // Adafruit_I2CDevice_h

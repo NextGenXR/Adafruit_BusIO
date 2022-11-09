@@ -1,3 +1,5 @@
+#ifdef USE_ADAFRUIT_BUS_IO
+
 #include <Adafruit_BusIO_Register.h>
 
 #if !defined(SPI_INTERFACES_COUNT) ||                                          \
@@ -363,3 +365,5 @@ void Adafruit_BusIO_Register::setAddressWidth(uint16_t address_width) {
 }
 
 #endif // SPI exists
+
+#endif // USE_ADAFRUIT_BUS_IO

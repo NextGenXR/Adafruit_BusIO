@@ -1,6 +1,12 @@
 #ifndef Adafruit_SPIDevice_h
 #define Adafruit_SPIDevice_h
 
+#if __has_include(<main.h>)
+#include <main.h>
+#endif
+
+#ifdef USE_ADAFRUIT_SPI_DEVICE
+
 #include <Arduino.h>
 
 #if !defined(SPI_INTERFACES_COUNT) ||                                          \
@@ -120,4 +126,7 @@ private:
 };
 
 #endif // has SPI defined
+
+#endif // USE_ADAFRUIT_SPI_DEVICE
+
 #endif // Adafruit_SPIDevice_h
