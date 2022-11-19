@@ -9,6 +9,7 @@
 #include <wiring_constants.h>
 
 #include <Adafruit_def.h>
+#include VARIANT_H
 
 #if !defined(SPI_INTERFACES_COUNT) ||                                          \
     (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
@@ -168,17 +169,16 @@ private:
   int8_t _cs = 0;
 
 #ifdef ARDUINO
-
   int8_t _sck;
   int8_t _mosi;
   int8_t _miso;
-
 
  #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *mosiPort, *clkPort, *misoPort, *csPort;
   BusIO_PortMask mosiPinMask, misoPinMask, clkPinMask, csPinMask;
  #endif
 #endif
+
 #endif
 
   bool _begun;
