@@ -3,6 +3,10 @@
 
 #include <Arduino.h>
 
+#if __has_include(<main.h>)
+    #include <main.h>
+#endif
+
 #ifdef SPI_INTERFACES_COUNT
 #undef SPI_INTERFACES_COUNT
 #endif
@@ -11,11 +15,15 @@
 
 #include <Stream.h>
 
+
 #if !defined(SPI_INTERFACES_COUNT) ||                                          \
     (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
 
 #include <Adafruit_I2CDevice.h>
 #include <Adafruit_SPIDevice.h>
+#include VARIANT_H
+#include <WSerial.h>
+
 
 typedef enum _Adafruit_BusIO_SPIRegType {
   ADDRBIT8_HIGH_TOREAD = 0,
@@ -80,8 +88,10 @@ public:
   void setAddress(uint16_t address);
   void setAddressWidth(uint16_t address_width);
 
+#ifdef USE_SERIAL	/* TODO */
   void print(Stream *s = &Serial);
   void println(Stream *s = &Serial);
+#endif
 
 private:
   Adafruit_I2CDevice *_i2cdevice;
@@ -89,7 +99,9 @@ private:
   Adafruit_BusIO_SPIRegType _spiregtype;
 
   uint16_t _address;
-  uint8_t _width, _addrwidth, _byteorder;
+  uint8_t _width;
+  uint8_t _addrwidth;
+  uint8_t _byteorder;
   uint8_t _buffer[4]; // we won't support anything larger than uint32 for
                       // non-buffered read
   uint32_t _cached = 0;

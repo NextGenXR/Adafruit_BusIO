@@ -1,4 +1,14 @@
+
+#if __has_include(<main.h>)
+    #include <main.h>
+#endif
+
+#include VARIANT_H
 #include <Adafruit_BusIO_Register.h>
+
+#include <cstdint>
+
+using namespace std;
 
 #if !defined(SPI_INTERFACES_COUNT) ||                                          \
     (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
@@ -101,7 +111,7 @@ bool Adafruit_BusIO_Register::write(uint8_t *buffer, uint8_t len) {
                            (uint8_t)(_address >> 8)};
 
   if (_i2cdevice) {
-    return _i2cdevice->write(buffer, len, true, addrbuffer, _addrwidth);
+    return (_i2cdevice->write(buffer, len, true, addrbuffer, _addrwidth));
   }
   if (_spidevice) {
     if (_spiregtype == ADDRESSED_OPCODE_BIT0_LOW_TO_WRITE) {
@@ -114,7 +124,7 @@ bool Adafruit_BusIO_Register::write(uint8_t *buffer, uint8_t len) {
       // the 'actual' reg addr is the second byte then
       addrbuffer[1] = (uint8_t)(_address & 0xFF);
       // the address appears to be a byte longer
-      return _spidevice->write(buffer, len, addrbuffer, _addrwidth + 1);
+      return (_spidevice->write(buffer, len, addrbuffer, _addrwidth + 1));
     }
 
     if (_spiregtype == ADDRBIT8_HIGH_TOREAD) {
@@ -127,9 +137,9 @@ bool Adafruit_BusIO_Register::write(uint8_t *buffer, uint8_t len) {
       addrbuffer[0] &= ~0x80;
       addrbuffer[0] |= 0x40;
     }
-    return _spidevice->write(buffer, len, addrbuffer, _addrwidth);
+    return (_spidevice->write(buffer, len, addrbuffer, _addrwidth));
   }
-  return false;
+  return (false);
 }
 
 /*!
@@ -144,7 +154,7 @@ bool Adafruit_BusIO_Register::write(uint32_t value, uint8_t numbytes) {
     numbytes = _width;
   }
   if (numbytes > 4) {
-    return false;
+    return (false);
   }
 
   // store a copy
@@ -158,7 +168,7 @@ bool Adafruit_BusIO_Register::write(uint32_t value, uint8_t numbytes) {
     }
     value >>= 8;
   }
-  return write(_buffer, numbytes);
+  return (write(_buffer, numbytes));
 }
 
 /*!
@@ -168,7 +178,7 @@ bool Adafruit_BusIO_Register::write(uint32_t value, uint8_t numbytes) {
  */
 uint32_t Adafruit_BusIO_Register::read(void) {
   if (!read(_buffer, _width)) {
-    return -1;
+    return (-1);
   }
 
   uint32_t value = 0;
@@ -182,7 +192,7 @@ uint32_t Adafruit_BusIO_Register::read(void) {
     }
   }
 
-  return value;
+  return (value);
 }
 
 /*!
@@ -203,7 +213,7 @@ bool Adafruit_BusIO_Register::read(uint8_t *buffer, uint8_t len) {
                            (uint8_t)(_address >> 8)};
 
   if (_i2cdevice) {
-    return _i2cdevice->write_then_read(addrbuffer, _addrwidth, buffer, len);
+    return (_i2cdevice->write_then_read(addrbuffer, _addrwidth, buffer, len));
   }
   if (_spidevice) {
     if (_spiregtype == ADDRESSED_OPCODE_BIT0_LOW_TO_WRITE) {
@@ -216,8 +226,7 @@ bool Adafruit_BusIO_Register::read(uint8_t *buffer, uint8_t len) {
       // the 'actual' reg addr is the second byte then
       addrbuffer[1] = (uint8_t)(_address & 0xFF);
       // the address appears to be a byte longer
-      return _spidevice->write_then_read(addrbuffer, _addrwidth + 1, buffer,
-                                         len);
+      return (_spidevice->write_then_read(addrbuffer, _addrwidth + 1, buffer,len));
     }
     if (_spiregtype == ADDRBIT8_HIGH_TOREAD) {
       addrbuffer[0] |= 0x80;
@@ -228,9 +237,9 @@ bool Adafruit_BusIO_Register::read(uint8_t *buffer, uint8_t len) {
     if (_spiregtype == AD8_HIGH_TOREAD_AD7_HIGH_TOINC) {
       addrbuffer[0] |= 0x80 | 0x40;
     }
-    return _spidevice->write_then_read(addrbuffer, _addrwidth, buffer, len);
+    return (_spidevice->write_then_read(addrbuffer, _addrwidth, buffer, len));
   }
-  return false;
+  return (false);
 }
 
 /*!
@@ -241,7 +250,7 @@ bool Adafruit_BusIO_Register::read(uint8_t *buffer, uint8_t len) {
  */
 bool Adafruit_BusIO_Register::read(uint16_t *value) {
   if (!read(_buffer, 2)) {
-    return false;
+    return (false);
   }
 
   if (_byteorder == LSBFIRST) {
@@ -253,7 +262,7 @@ bool Adafruit_BusIO_Register::read(uint16_t *value) {
     *value <<= 8;
     *value |= _buffer[1];
   }
-  return true;
+  return (true);
 }
 
 /*!
@@ -264,17 +273,18 @@ bool Adafruit_BusIO_Register::read(uint16_t *value) {
  */
 bool Adafruit_BusIO_Register::read(uint8_t *value) {
   if (!read(_buffer, 1)) {
-    return false;
+    return (false);
   }
 
   *value = _buffer[0];
-  return true;
+  return (true);
 }
 
 /*!
  *    @brief  Pretty printer for this register
  *    @param  s The Stream to print to, defaults to &Serial
  */
+#ifdef USE_PRINT
 void Adafruit_BusIO_Register::print(Stream *s) {
   uint32_t val = read();
   s->print("0x");
@@ -289,6 +299,7 @@ void Adafruit_BusIO_Register::println(Stream *s) {
   print(s);
   s->println();
 }
+#endif /* USE_PRINT */
 
 /*!
  *    @brief  Create a slice of the register that we can address without
