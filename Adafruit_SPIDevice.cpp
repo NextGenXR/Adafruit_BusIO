@@ -1,4 +1,36 @@
+
+
+#ifdef USE_HAL_DRIVER
+#if __has_include(<main.h>)
+#include <main.h>
+#endif
+
+#if __has_include(<stm32yyxx_hal_def.h>)
+    #include <stm32yyxx_hal_def.h>
+#else
+    #include "stm32_def.h"
+#endif
+
 #include "Adafruit_SPIDevice.h"
+#include <Adafruit_def.h>
+
+#include <wiring_digital.h>
+
+#include <stm32yyxx_hal_conf.h>
+#include <stm32yyxx_hal_spi.h>
+#include <stm32yyxx_hal_gpio.h>
+#include <stm32yyxx_hal.h>
+
+#include <stm32duino.h>
+//#include <STM32duino_SPI.h>
+
+#include <pins_arduino.h>
+#endif
+
+//#ifdef HAL_SPI_MODULE_ENABLED
+
+#if !defined(SPI_INTERFACES_COUNT) ||                                          \
+    (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
 
 //#define DEBUG_SERIAL Serial
 
@@ -11,29 +43,25 @@
  *    @param  dataMode The SPI mode to use, defaults to SPI_MODE0
  *    @param  theSPI The SPI bus to use, defaults to &theSPI
  */
+#ifdef ARDUINO
 Adafruit_SPIDevice::Adafruit_SPIDevice(int8_t cspin, uint32_t freq,
                                        BusIOBitOrder dataOrder,
-                                       uint8_t dataMode, SPIClass *theSPI) {
-#ifdef BUSIO_HAS_HW_SPI
-  _cs = cspin;
-  _sck = _mosi = _miso = -1;
-  _spi = theSPI;
-  _begun = false;
-  _spiSetting = new SPISettings(freq, dataOrder, dataMode);
-  _freq = freq;
-  _dataOrder = dataOrder;
-  _dataMode = dataMode;
-#else
-  // unused, but needed to suppress compiler warns
-  (void)cspin;
-  (void)freq;
-  (void)dataOrder;
-  (void)dataMode;
-  (void)theSPI;
-#endif
-}
+                                       uint8_t dataMode, SPIClass *theSPI)
+{
+	_cs = cspin;
+	_sck = _mosi = _miso = -1;
+	_spi = theSPI;
+	_begun = false;
+	_spiSetting = new SPISettings(freq, dataOrder, dataMode);
+	_freq = freq;
+	_dataOrder = dataOrder;
+	_dataMode = dataMode;
 
-/*!
+}
+#endif
+
+
+/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *    @brief  Create an SPI device with the given CS pin and settings
  *    @param  cspin The arduino pin number to use for chip select
  *    @param  sckpin The arduino pin number to use for SCK
@@ -46,6 +74,7 @@ Adafruit_SPIDevice::Adafruit_SPIDevice(int8_t cspin, uint32_t freq,
  * defaults to SPI_BITORDER_MSBFIRST
  *    @param  dataMode The SPI mode to use, defaults to SPI_MODE0
  */
+#ifdef ARDUINO
 Adafruit_SPIDevice::Adafruit_SPIDevice(int8_t cspin, int8_t sckpin,
                                        int8_t misopin, int8_t mosipin,
                                        uint32_t freq, BusIOBitOrder dataOrder,
@@ -55,7 +84,7 @@ Adafruit_SPIDevice::Adafruit_SPIDevice(int8_t cspin, int8_t sckpin,
   _miso = misopin;
   _mosi = mosipin;
 
-#ifdef BUSIO_USE_FAST_PINIO
+#if defined(BUSIO_USE_FAST_PINIO) && defined(ARDUINO)
   csPort = (BusIO_PortReg *)portOutputRegister(digitalPinToPort(cspin));
   csPinMask = digitalPinToBitMask(cspin);
   if (mosipin != -1) {
@@ -74,31 +103,27 @@ Adafruit_SPIDevice::Adafruit_SPIDevice(int8_t cspin, int8_t sckpin,
   _dataOrder = dataOrder;
   _dataMode = dataMode;
   _begun = false;
+  _spiSetting = new SPISettings(freq, dataOrder, dataMode);
+  _spi = NULL;
 }
+#endif
 
-/*!
- *    @brief  Release memory allocated in constructors
- */
-Adafruit_SPIDevice::~Adafruit_SPIDevice() {
-  if (_spiSetting)
-    delete _spiSetting;
-}
 
 /*!
  *    @brief  Initializes SPI bus and sets CS pin high
  *    @return Always returns true because there's no way to test success of SPI
  * init
  */
-bool Adafruit_SPIDevice::begin(void) {
+bool Adafruit_SPIDevice::begin(void)
+{
+#ifdef ARDUINO
   if (_cs != -1) {
     pinMode(_cs, OUTPUT);
     digitalWrite(_cs, HIGH);
   }
 
   if (_spi) { // hardware SPI
-#ifdef BUSIO_HAS_HW_SPI
     _spi->begin();
-#endif
   } else {
     pinMode(_sck, OUTPUT);
 
@@ -117,25 +142,79 @@ bool Adafruit_SPIDevice::begin(void) {
       pinMode(_miso, INPUT);
     }
   }
+#endif
 
   _begun = true;
-  return true;
+  return (true);
+}
+
+
+Adafruit_SPIDevice::Adafruit_SPIDevice(SPI_HandleTypeDef* Handle, GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin)
+{
+	if(Handle != NULL)
+	{
+		_spiHandle = Handle;
+		spiStatus = HAL_SPI_STATE_READY;
+	}
+
+	_csGPIO = csGPIO;
+	_csGPIO_Pin = csGPIO_Pin;
+	_spiInit = NULL;
+	_begun = false;
+	spiStatus = HAL_SPI_GetState(_spiHandle);
+
+	setChipSelect(HIGH);
+}
+
+Adafruit_SPIDevice::Adafruit_SPIDevice(SPI_InitTypeDef* spiInit, SPI_HandleTypeDef* Handle,
+		GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin)
+{
+	_csGPIO = csGPIO;
+	_csGPIO_Pin = csGPIO_Pin;
+	_spiInit = spiInit;
+	_begun = false;
+
+	if(Handle != NULL)
+	{
+		_spiHandle = Handle;
+		spiStatus = HAL_SPI_STATE_READY;
+	}
+	else
+	{
+		// TODO: Initialize the SPI Interface with SPI_InitTypeDef
+		//
+	}
+}
+
+
+/*!
+ *    @brief  Release memory allocated in constructors
+ */
+Adafruit_SPIDevice::~Adafruit_SPIDevice()
+{
+#ifdef ARDUINO
+  if (_spiSetting) {
+    delete _spiSetting;
+    _spiSetting = nullptr;
+  }
+#endif
 }
 
 /*!
- *    @brief  Transfer (send/receive) a buffer over hard/soft SPI, without
- * transaction management
+ *    @brief  Transfer (send/receive) one byte over hard/soft SPI
  *    @param  buffer The buffer to send and receive at the same time
  *    @param  len    The number of bytes to transfer
  */
-void Adafruit_SPIDevice::transfer(uint8_t *buffer, size_t len) {
-  //
-  // HARDWARE SPI
-  //
-  if (_spi) {
-#ifdef BUSIO_HAS_HW_SPI
+#ifdef ARDUINO
+void Adafruit_SPIDevice::transfer(uint8_t *buffer, size_t len)
+{
+
+
+	if (_spi) {
+    // hardware SPI is easy
+
 #if defined(SPARK)
-    _spi->transfer(buffer, buffer, len, nullptr);
+    _spi->transfer(buffer, buffer, len, NULL);
 #elif defined(STM32)
     for (size_t i = 0; i < len; i++) {
       _spi->transfer(buffer[i]);
@@ -144,12 +223,8 @@ void Adafruit_SPIDevice::transfer(uint8_t *buffer, size_t len) {
     _spi->transfer(buffer, len);
 #endif
     return;
-#endif
   }
 
-  //
-  // SOFTWARE SPI
-  //
   uint8_t startbit;
   if (_dataOrder == SPI_BITORDER_LSBFIRST) {
     startbit = 0x1;
@@ -160,7 +235,9 @@ void Adafruit_SPIDevice::transfer(uint8_t *buffer, size_t len) {
   bool towrite, lastmosi = !(buffer[0] & startbit);
   uint8_t bitdelay_us = (1000000 / _freq) / 2;
 
+  // for softSPI we'll do it by hand
   for (size_t i = 0; i < len; i++) {
+    // software SPI
     uint8_t reply = 0;
     uint8_t send = buffer[i];
 
@@ -261,77 +338,50 @@ void Adafruit_SPIDevice::transfer(uint8_t *buffer, size_t len) {
       }
     }
   }
-  return;
+
+
 }
+#endif
 
 /*!
- *    @brief  Transfer (send/receive) one byte over hard/soft SPI, without
- * transaction management
+ *    @brief  Transfer (send/receive) one byte over hard/soft SPI
  *    @param  send The byte to send
  *    @return The byte received while transmitting
  */
+#ifdef ARDUINO
 uint8_t Adafruit_SPIDevice::transfer(uint8_t send) {
   uint8_t data = send;
   transfer(&data, 1);
   return data;
 }
+#endif
 
 /*!
  *    @brief  Manually begin a transaction (calls beginTransaction if hardware
  * SPI)
  */
+#ifdef ARDUINO
 void Adafruit_SPIDevice::beginTransaction(void) {
   if (_spi) {
-#ifdef BUSIO_HAS_HW_SPI
     _spi->beginTransaction(*_spiSetting);
-#endif
   }
 }
+
 
 /*!
  *    @brief  Manually end a transaction (calls endTransaction if hardware SPI)
  */
-void Adafruit_SPIDevice::endTransaction(void) {
+
+void Adafruit_SPIDevice::endTransaction(void)
+{
   if (_spi) {
-#ifdef BUSIO_HAS_HW_SPI
     _spi->endTransaction();
+  }
+}
 #endif
-  }
-}
 
 /*!
- *    @brief  Assert/Deassert the CS pin if it is defined
- *    @param  value The state the CS is set to
- */
-void Adafruit_SPIDevice::setChipSelect(int value) {
-  if (_cs != -1) {
-    digitalWrite(_cs, value);
-  }
-}
-
-/*!
- *    @brief  Write a buffer or two to the SPI device, with transaction
- * management.
- *    @brief  Manually begin a transaction (calls beginTransaction if hardware
- *            SPI) with asserting the CS pin
- */
-void Adafruit_SPIDevice::beginTransactionWithAssertingCS() {
-  beginTransaction();
-  setChipSelect(LOW);
-}
-
-/*!
- *    @brief  Manually end a transaction (calls endTransaction if hardware SPI)
- *            with deasserting the CS pin
- */
-void Adafruit_SPIDevice::endTransactionWithDeassertingCS() {
-  setChipSelect(HIGH);
-  endTransaction();
-}
-
-/*!
- *    @brief  Write a buffer or two to the SPI device, with transaction
- * management.
+ *    @brief  Write a buffer or two to the SPI device.
  *    @param  buffer Pointer to buffer of data to write
  *    @param  len Number of bytes from buffer to write
  *    @param  prefix_buffer Pointer to optional array of data to write before
@@ -340,11 +390,33 @@ void Adafruit_SPIDevice::endTransactionWithDeassertingCS() {
  *    @return Always returns true because there's no way to test success of SPI
  * writes
  */
-bool Adafruit_SPIDevice::write(const uint8_t *buffer, size_t len,
-                               const uint8_t *prefix_buffer,
-                               size_t prefix_len) {
-  beginTransactionWithAssertingCS();
 
+bool Adafruit_SPIDevice::write(BufferTypeDef buffer, LengthTypeDef len,
+		BufferTypeDef prefix_buffer, LengthTypeDef prefix_len)
+{
+	HAL_StatusTypeDef result1 = HAL_OK;
+	HAL_StatusTypeDef result2 = HAL_OK;
+
+	if(prefix_len != 0)
+	{
+		setChipSelect(LOW);
+		result2 = HAL_SPI_Transmit(_spiHandle, prefix_buffer, prefix_len, SPI_TIMEOUT);
+		setChipSelect(HIGH);
+	}
+
+	setChipSelect(LOW);
+	result1 = HAL_SPI_Transmit(_spiHandle, buffer, len, SPI_TIMEOUT);
+	setChipSelect(HIGH);
+
+	return (result1 == HAL_OK && result2 == HAL_OK);
+
+#ifdef ARDUINO
+
+	if (_spi) {
+    _spi->beginTransaction(*_spiSetting);
+  }
+
+  setChipSelect(LOW);
   // do the writing
 #if defined(ARDUINO_ARCH_ESP32)
   if (_spi) {
@@ -353,6 +425,22 @@ bool Adafruit_SPIDevice::write(const uint8_t *buffer, size_t len,
     }
     if (len > 0) {
       _spi->transferBytes(buffer, nullptr, len);
+    }
+  } else
+#elif defined(ARDUINO_ARCH_SAMD) && defined(_ADAFRUIT_ZERODMA_H_)
+  // The variant of transfer() used below currently only exists in the Adafruit
+  // core. It causes a build failure when building against the main Arduino SAMD
+  // core. Unfortunately there doesn't seem to be a supported #define that this
+  // code can use to tell which core it's building against. This hack (checking
+  // for the include guard that gets defined when the Adafruit core's SPI.h
+  // includes Adafruit_ZeroDMA.h) works for now, but it should be improved when
+  // possible.
+  if (_spi) {
+    if (prefix_len > 0) {
+      _spi->transfer(prefix_buffer, nullptr, prefix_len);
+    }
+    if (len > 0) {
+      _spi->transfer(buffer, nullptr, len);
     }
   } else
 #endif
@@ -364,11 +452,15 @@ bool Adafruit_SPIDevice::write(const uint8_t *buffer, size_t len,
       transfer(buffer[i]);
     }
   }
-  endTransactionWithDeassertingCS();
+  setChipSelect(HIGH);
+
+  if (_spi) {
+    _spi->endTransaction();
+  }
 
 #ifdef DEBUG_SERIAL
   DEBUG_SERIAL.print(F("\tSPIDevice Wrote: "));
-  if ((prefix_len != 0) && (prefix_buffer != nullptr)) {
+  if ((prefix_len != 0) && (prefix_buffer != NULL)) {
     for (uint16_t i = 0; i < prefix_len; i++) {
       DEBUG_SERIAL.print(F("0x"));
       DEBUG_SERIAL.print(prefix_buffer[i], HEX);
@@ -386,12 +478,13 @@ bool Adafruit_SPIDevice::write(const uint8_t *buffer, size_t len,
   DEBUG_SERIAL.println();
 #endif
 
-  return true;
+  return (true);
+  #endif
 }
 
+
 /*!
- *    @brief  Read from SPI into a buffer from the SPI device, with transaction
- * management.
+ *    @brief  Read from SPI into a buffer from the SPI device.
  *    @param  buffer Pointer to buffer of data to read into
  *    @param  len Number of bytes from buffer to read.
  *    @param  sendvalue The 8-bits of data to write when doing the data read,
@@ -399,12 +492,31 @@ bool Adafruit_SPIDevice::write(const uint8_t *buffer, size_t len,
  *    @return Always returns true because there's no way to test success of SPI
  * writes
  */
-bool Adafruit_SPIDevice::read(uint8_t *buffer, size_t len, uint8_t sendvalue) {
+
+bool Adafruit_SPIDevice::read(BufferTypeDef buffer, LengthTypeDef len, uint8_t sendvalue)
+{
   memset(buffer, sendvalue, len); // clear out existing buffer
 
-  beginTransactionWithAssertingCS();
+  setChipSelect(LOW);
+  HAL_StatusTypeDef result = HAL_SPI_Receive(_spiHandle, buffer, len, SPI_TIMEOUT);
+  setChipSelect(HIGH);
+
+  return (result == HAL_OK);
+
+
+#ifdef ARDUINO
+  if (_spi) {
+    _spi->beginTransaction(*_spiSetting);
+  }
+
+  setChipSelect(LOW);
   transfer(buffer, len);
-  endTransactionWithDeassertingCS();
+  setChipSelect(HIGH);
+
+
+  if (_spi) {
+    _spi->endTransaction();
+  }
 
 #ifdef DEBUG_SERIAL
   DEBUG_SERIAL.print(F("\tSPIDevice Read: "));
@@ -419,13 +531,15 @@ bool Adafruit_SPIDevice::read(uint8_t *buffer, size_t len, uint8_t sendvalue) {
   DEBUG_SERIAL.println();
 #endif
 
-  return true;
+  return (true);
+#endif
 }
 
+
 /*!
- *    @brief  Write some data, then read some data from SPI into another buffer,
- * with transaction management. The buffers can point to same/overlapping
- * locations. This does not transmit-receive at the same time!
+ *    @brief  Write some data, then read some data from SPI into another buffer.
+ * The buffers can point to same/overlapping locations. This does not
+ * transmit-receive at the same time!
  *    @param  write_buffer Pointer to buffer of data to write from
  *    @param  write_len Number of bytes from buffer to write.
  *    @param  read_buffer Pointer to buffer of data to read into.
@@ -435,15 +549,54 @@ bool Adafruit_SPIDevice::read(uint8_t *buffer, size_t len, uint8_t sendvalue) {
  *    @return Always returns true because there's no way to test success of SPI
  * writes
  */
-bool Adafruit_SPIDevice::write_then_read(const uint8_t *write_buffer,
-                                         size_t write_len, uint8_t *read_buffer,
-                                         size_t read_len, uint8_t sendvalue) {
-  beginTransactionWithAssertingCS();
+
+bool Adafruit_SPIDevice::write_then_read(BufferTypeDef write_buffer,
+		LengthTypeDef write_len, BufferTypeDef read_buffer,
+		LengthTypeDef read_len, uint8_t sendvalue)
+{
+	HAL_StatusTypeDef resultW = HAL_OK;
+	HAL_StatusTypeDef resultR = HAL_OK;
+
+	setChipSelect(LOW);
+	resultW = HAL_SPI_Transmit(_spiHandle, write_buffer, write_len, SPI_TIMEOUT);
+	setChipSelect(HIGH);
+
+	HAL_Delay(10);
+
+	memset(read_buffer, sendvalue, read_len); // clear out existing buffer
+
+	setChipSelect(LOW);
+	resultR = HAL_SPI_Receive(_spiHandle, read_buffer, read_len, SPI_TIMEOUT);
+	setChipSelect(HIGH);
+
+	return (resultW == HAL_OK && resultR == HAL_OK);
+
+
+#ifdef ARDUINO
+	if (_spi) {
+    _spi->beginTransaction(*_spiSetting);
+  }
+
+
+  setChipSelect(LOW);
   // do the writing
 #if defined(ARDUINO_ARCH_ESP32)
   if (_spi) {
     if (write_len > 0) {
       _spi->transferBytes(write_buffer, nullptr, write_len);
+    }
+  } else
+#elif defined(ARDUINO_ARCH_SAMD) && defined(_ADAFRUIT_ZERODMA_H_)
+  // The variant of transfer() used below currently only exists in the Adafruit
+  // core. It causes a build failure when building against the main Arduino SAMD
+  // core. Unfortunately there doesn't seem to be a supported #define that this
+  // code can use to tell which core it's building against. This hack (checking
+  // for the include guard that gets defined when the Adafruit core's SPI.h
+  // includes Adafruit_ZeroDMA.h) works for now, but it should be improved when
+  // possible.
+  if (_spi) {
+    if (write_len > 0) {
+      _spi->transfer(write_buffer, nullptr, write_len);
     }
   } else
 #endif
@@ -484,25 +637,82 @@ bool Adafruit_SPIDevice::write_then_read(const uint8_t *write_buffer,
   DEBUG_SERIAL.println();
 #endif
 
-  endTransactionWithDeassertingCS();
+  setChipSelect(HIGH);
 
-  return true;
+#ifdef ARDUINO
+  if (_spi) {
+    _spi->endTransaction();
+  }
+#endif
+
+  return (true);
+#endif
 }
+
 
 /*!
  *    @brief  Write some data and read some data at the same time from SPI
- * into the same buffer, with transaction management. This is basicaly a wrapper
- * for transfer() with CS-pin and transaction management. This /does/
- * transmit-receive at the same time!
+ * into the same buffer. This is basicaly a wrapper for transfer() with
+ * CS-pin and transaction management.
+ * This /does/ transmit-receive at the same time!
  *    @param  buffer Pointer to buffer of data to write/read to/from
  *    @param  len Number of bytes from buffer to write/read.
  *    @return Always returns true because there's no way to test success of SPI
  * writes
  */
-bool Adafruit_SPIDevice::write_and_read(uint8_t *buffer, size_t len) {
-  beginTransactionWithAssertingCS();
-  transfer(buffer, len);
-  endTransactionWithDeassertingCS();
 
-  return true;
+bool Adafruit_SPIDevice::write_and_read(BufferTypeDef buffer, LengthTypeDef len)
+{
+	setChipSelect(LOW);
+	HAL_StatusTypeDef resultRW = HAL_SPI_TransmitReceive(_spiHandle, buffer, buffer, len, SPI_TIMEOUT);
+	setChipSelect(HIGH);
+
+	return (resultRW = HAL_OK);
+
+#ifdef ARDUINO
+	if (_spi) {
+    _spi->beginTransaction(*_spiSetting);
+  }
+
+
+/*
+	HAL_StatusTypeDef HAL_SPI_Transmit(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+	HAL_StatusTypeDef HAL_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint16_t Size, uint32_t Timeout);
+	HAL_StatusTypeDef HAL_SPI_TransmitReceive(SPI_HandleTypeDef *hspi, uint8_t *pTxData, uint8_t *pRxData, uint16_t Size,
+											  uint32_t Timeout);
+*/
+
+  setChipSelect(LOW);
+  HAL_StatusTypeDef result = HAL_SPI_TransmitReceive(_spiHandle, buffer, buffer, len, SPI_TIMEOUT);
+  setChipSelect(HIGH);
+
+  return (result == HAL_OK ? true : false);
+
+
+  if (_spi) {
+    _spi->endTransaction();
+  }
+
+
+  return (true);
+#endif
 }
+
+
+void Adafruit_SPIDevice::setChipSelect(int value)
+{
+	if (_cs == -1)	// User-controlled CS
+		return;
+
+#ifdef ARDUINO
+  digitalWrite(_cs, value);
+#else
+  // TODO: Set Chip Select Pin/Port
+  HAL_GPIO_WritePin(_csGPIO, _csGPIO_Pin, (value == HIGH ? GPIO_PIN_SET : GPIO_PIN_RESET));
+#endif
+}
+
+
+#endif /* HAL_SPI_MODULE_ENABLED */
+
+

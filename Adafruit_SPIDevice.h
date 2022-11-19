@@ -1,23 +1,33 @@
+
 #ifndef Adafruit_SPIDevice_h
 #define Adafruit_SPIDevice_h
+
+#ifdef HAL_SPI_MODULE_ENABLED
+
+#include <Arduino.h>
+#include <stdio.h>
+#include <wiring_constants.h>
+
+#include <Adafruit_def.h>
+
+#if !defined(SPI_INTERFACES_COUNT) ||                                          \
+    (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
+
+#ifdef USE_HAL_DRIVER
 
 #if __has_include(<main.h>)
 #include <main.h>
 #endif
 
-#ifdef USE_ADAFRUIT_SPI_DEVICE
+#include <stm32yyxx_hal_def.h>
+#include <stm32yyxx_hal_conf.h>
 
-#include <Arduino.h>
+#include <stm32yyxx_hal_spi.h>
+#include <stm32yyxx_ll_spi.h>
+#include <STM32duino_SPI.h>
 
-#if !defined(SPI_INTERFACES_COUNT) ||                                          \
-    (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
-// HW SPI available
-#include <SPI.h>
-#define BUSIO_HAS_HW_SPI
-#else
-// SW SPI ONLY
-enum { SPI_MODE0, SPI_MODE1, SPI_MODE2, _SPI_MODE4 };
-typedef uint8_t SPIClass;
+#include <stm32yyxx_ll_gpio.h>
+#include <stm32yyxx_hal_gpio_ex.h>
 #endif
 
 // some modern SPI definitions don't have BitOrder enum
@@ -51,19 +61,11 @@ typedef enum _BitOrder {
 typedef BitOrder BusIOBitOrder;
 #endif
 
-#if defined(__IMXRT1062__) // Teensy 4.x
-// *Warning* I disabled the usage of FAST_PINIO as the set/clear operations
-// used in the cpp file are not atomic and can effect multiple IO pins
-// and if an interrupt happens in between the time the code reads the register
-//  and writes out the updated value, that changes one or more other IO pins
-// on that same IO port, those change will be clobbered when the updated
-// values are written back.  A fast version can be implemented that uses the
-// ports set and clear registers which are atomic.
-// typedef volatile uint32_t BusIO_PortReg;
-// typedef uint32_t BusIO_PortMask;
-//#define BUSIO_USE_FAST_PINIO
+#ifndef STM
+#define STM
+#endif
 
-#elif defined(__AVR__) || defined(TEENSYDUINO)
+#if defined(__AVR__) || defined(TEENSYDUINO)
 typedef volatile uint8_t BusIO_PortReg;
 typedef uint8_t BusIO_PortMask;
 #define BUSIO_USE_FAST_PINIO
@@ -86,59 +88,106 @@ typedef uint32_t BusIO_PortMask;
 #undef BUSIO_USE_FAST_PINIO
 #endif
 
+#ifndef LOW
+#define LOW 0
+#define HIGH 1
+#endif
+
+#ifdef ARDUINO
+enum GPIO_TypeDef* GPIOx
+{
+	PORT_A = GPIOA,
+	PORT_B = GPIOB,
+	PORT_C = GPIOC,
+	PORT_D = GPIOD,
+	PORT_E = GPIOE,
+	PORT_F = GPIOF,
+	PORT_G = GPIOG,
+	PORT_H = GPIOH
+};
+#endif
+
+#define SPI_TIMEOUT 1000
+
 /**! The class which defines how we will talk to this device over SPI **/
 class Adafruit_SPIDevice {
 public:
-#ifdef BUSIO_HAS_HW_SPI
+#ifdef ARDUINO
   Adafruit_SPIDevice(int8_t cspin, uint32_t freq = 1000000,
                      BusIOBitOrder dataOrder = SPI_BITORDER_MSBFIRST,
                      uint8_t dataMode = SPI_MODE0, SPIClass *theSPI = &SPI);
-#else
-  Adafruit_SPIDevice(int8_t cspin, uint32_t freq = 1000000,
-                     BusIOBitOrder dataOrder = SPI_BITORDER_MSBFIRST,
-                     uint8_t dataMode = SPI_MODE0, SPIClass *theSPI = nullptr);
-#endif
+
   Adafruit_SPIDevice(int8_t cspin, int8_t sck, int8_t miso, int8_t mosi,
                      uint32_t freq = 1000000,
                      BusIOBitOrder dataOrder = SPI_BITORDER_MSBFIRST,
                      uint8_t dataMode = SPI_MODE0);
+#endif
+
+#ifdef USE_HAL_DRIVER
+  Adafruit_SPIDevice(SPI_HandleTypeDef* Handle, GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin);
+  Adafruit_SPIDevice(SPI_InitTypeDef* spiInit, SPI_HandleTypeDef* Handle, GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin);
+#endif
+
   ~Adafruit_SPIDevice();
 
   bool begin(void);
-  bool read(uint8_t *buffer, size_t len, uint8_t sendvalue = 0xFF);
-  bool write(const uint8_t *buffer, size_t len,
-             const uint8_t *prefix_buffer = nullptr, size_t prefix_len = 0);
-  bool write_then_read(const uint8_t *write_buffer, size_t write_len,
-                       uint8_t *read_buffer, size_t read_len,
+  bool read(BufferTypeDef buffer, LengthTypeDef len, uint8_t sendvalue = 0xFF);
+  bool write(BufferTypeDef buffer, LengthTypeDef len, BufferTypeDef prefix_buffer = NULL,
+		  LengthTypeDef prefix_len = 0);
+  bool write_then_read(BufferTypeDef write_buffer, LengthTypeDef write_len,
+		  	  	  	  BufferTypeDef read_buffer, LengthTypeDef read_len,
                        uint8_t sendvalue = 0xFF);
-  bool write_and_read(uint8_t *buffer, size_t len);
+  bool write_and_read(BufferTypeDef buffer, LengthTypeDef len);
 
+#ifdef ARDUINO
   uint8_t transfer(uint8_t send);
   void transfer(uint8_t *buffer, size_t len);
+#endif
   void beginTransaction(void);
   void endTransaction(void);
-  void beginTransactionWithAssertingCS();
-  void endTransactionWithDeassertingCS();
 
 private:
-#ifdef BUSIO_HAS_HW_SPI
-  SPIClass *_spi = nullptr;
-  SPISettings *_spiSetting = nullptr;
-#else
-  uint8_t *_spi = nullptr;
-  uint8_t *_spiSetting = nullptr;
+#ifdef USE_HAL_DRIVER
+  SPI_InitTypeDef *_spiInit;
+  SPI_HandleTypeDef* _spiHandle;
+  HAL_SPI_StateTypeDef spiStatus = HAL_SPI_STATE_RESET;
+
+  GPIO_TypeDef* _csGPIO;
+  uint16_t _csGPIO_Pin;
 #endif
-  uint32_t _freq;
+#ifdef ARDUINO
+  SPIClass *_spi;
+  SPISettings *_spiSetting;
+#endif
   BusIOBitOrder _dataOrder;
   uint8_t _dataMode;
-  void setChipSelect(int value);
 
-  int8_t _cs, _sck, _mosi, _miso;
-#ifdef BUSIO_USE_FAST_PINIO
+  uint32_t _freq;
+
+  void setChipSelect(int value);
+  int8_t _cs = 0;
+
+#ifdef ARDUINO
+
+  int8_t _sck;
+  int8_t _mosi;
+  int8_t _miso;
+
+
+ #ifdef BUSIO_USE_FAST_PINIO
   BusIO_PortReg *mosiPort, *clkPort, *misoPort, *csPort;
   BusIO_PortMask mosiPinMask, misoPinMask, clkPinMask, csPinMask;
+ #endif
 #endif
+#endif
+
   bool _begun;
 };
 
-#endif // Adafruit_SPIDevice_h
+#endif // has SPI defined
+
+#endif /* HAL_SPI_MODULE_ENABLED */
+
+
+
+
