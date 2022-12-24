@@ -110,9 +110,16 @@ enum GPIO_TypeDef* GPIOx
 
 #define SPI_TIMEOUT 1000
 
+typedef struct SPI_Device_t {
+	uint16_t SS_Pin;
+	GPIO_TypeDef*  SS_Port;
+	SPI_HandleTypeDef *hspi;
+} SPI_Device;
+
 /**! The class which defines how we will talk to this device over SPI **/
 class Adafruit_SPIDevice {
 public:
+
 #ifdef ARDUINO
   Adafruit_SPIDevice(int8_t cspin, uint32_t freq = 1000000,
                      BusIOBitOrder dataOrder = SPI_BITORDER_MSBFIRST,
@@ -126,6 +133,7 @@ public:
 
 #ifdef USE_HAL_DRIVER
   Adafruit_SPIDevice(SPI_HandleTypeDef* Handle, GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin);
+  Adafruit_SPIDevice(SPI_Device_t device);
   Adafruit_SPIDevice(SPI_InitTypeDef* spiInit, SPI_HandleTypeDef* Handle, GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin);
 #endif
 

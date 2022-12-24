@@ -148,6 +148,11 @@ bool Adafruit_SPIDevice::begin(void)
   return (true);
 }
 
+Adafruit_SPIDevice::Adafruit_SPIDevice(SPI_Device_t device)
+{
+
+
+}
 
 Adafruit_SPIDevice::Adafruit_SPIDevice(SPI_HandleTypeDef* Handle, GPIO_TypeDef* csGPIO, uint16_t csGPIO_Pin)
 {
