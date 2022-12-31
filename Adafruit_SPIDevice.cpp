@@ -21,7 +21,7 @@
 #include <stm32yyxx_hal_gpio.h>
 #include <stm32yyxx_hal.h>
 
-#include <stm32duino.h>
+#include "../STM32F7xx_Nucleo_144/Utility/stm32duino.h"
 //#include <STM32duino_SPI.h>
 
 #include <pins_arduino.h>
