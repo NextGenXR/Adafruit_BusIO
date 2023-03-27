@@ -1,6 +1,7 @@
 
 
 #ifdef USE_HAL_DRIVER
+
 #if __has_include(<main.h>)
 #include <main.h>
 #endif
@@ -14,17 +15,19 @@
 #include "Adafruit_SPIDevice.h"
 #include <Adafruit_def.h>
 
-#include <wiring_digital.h>
-
 #include <stm32yyxx_hal_conf.h>
 #include <stm32yyxx_hal_spi.h>
 #include <stm32yyxx_hal_gpio.h>
 #include <stm32yyxx_hal.h>
 
+#ifdef ARDUINO
+#include <wiring_digital.h>
 #include "../STM32F7xx_Nucleo_144/Utility/stm32duino.h"
 //#include <STM32duino_SPI.h>
 
 #include <pins_arduino.h>
+#endif
+
 #endif
 
 //#ifdef HAL_SPI_MODULE_ENABLED

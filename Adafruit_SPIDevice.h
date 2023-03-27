@@ -4,12 +4,16 @@
 
 #ifdef HAL_SPI_MODULE_ENABLED
 
-#include <Arduino.h>
 #include <stdio.h>
+
+#ifdef ARDUINO
+#include <Arduino.h>
 #include <wiring_constants.h>
+#include VARIANT_H
+#endif
 
 #include <Adafruit_def.h>
-#include VARIANT_H
+
 
 #if !defined(SPI_INTERFACES_COUNT) ||                                          \
     (defined(SPI_INTERFACES_COUNT) && (SPI_INTERFACES_COUNT > 0))
@@ -164,6 +168,7 @@ private:
   GPIO_TypeDef* _csGPIO;
   uint16_t _csGPIO_Pin;
 #endif
+
 #ifdef ARDUINO
   SPIClass *_spi;
   SPISettings *_spiSetting;
@@ -176,6 +181,7 @@ private:
   void setChipSelect(int value);
   int8_t _cs = 0;
 
+  // For HAL, use the internal controllers configured in CubeMX or other code.
 #ifdef ARDUINO
   int8_t _sck;
   int8_t _mosi;
