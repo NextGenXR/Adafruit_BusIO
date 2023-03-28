@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 
-#ifdef ARDUINO
+#ifdef ARDUINO_NUCLEO_F767ZI
 #include <Arduino.h>
 #include <wiring_constants.h>
 #include VARIANT_H
